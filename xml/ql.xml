@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language SYSTEM "language.dtd">
+<!-- Based on java.xml -->
+<language name="QL" version="1.0" kateversion="2.4" section="Sources" extensions="*.ql;*.qll" mimetype="text/x-ql" license="LGPL" author="Max Schaefer (max@semmle.com)">
+	<highlighting>
+		<list name="keywords">
+			<item> and </item>
+			<item> as </item>
+			<item> asc </item>
+			<item> avg </item>
+			<item> by </item>
+			<item> class </item>
+			<item> count </item>
+			<item> desc </item>
+			<item> else </item>
+			<item> exists </item>
+			<item> extends </item>
+			<item> false </item>
+			<item> forall </item>
+			<item> forex </item>
+			<item> from </item>
+			<item> if </item>
+			<item> implies </item>
+			<item> import </item>
+			<item> in </item>
+			<item> instanceof </item>
+			<item> max </item>
+			<item> min </item>
+			<item> not </item>
+			<item> or </item>
+			<item> order </item>
+			<item> predicate </item>
+			<item> rank </item>
+			<item> result </item>
+			<item> rule </item>
+			<item> select </item>
+			<item> strictcount </item>
+			<item> strictsum </item>
+			<item> sum </item>
+			<item> super </item>
+			<item> then </item>
+			<item> this </item>
+			<item> true </item>
+			<item> where </item>
+		</list>
+		<list name="types">
+			<item> boolean </item>
+			<item> date </item>
+			<item> float </item>
+			<item> int </item>
+			<item> string </item>
+		</list>
+		<contexts>
+			<context attribute="Normal Text" lineEndContext="#stay" name="Normal">
+				<IncludeRules context="##Javadoc"/>
+				<keyword attribute="Keyword" context="#stay" String="keywords"/>
+				<Float attribute="Float" context="#stay">
+					<AnyChar String="fF" attribute="Float" context="#stay"/>
+				</Float>
+				<Int attribute="Decimal" context="#stay">
+					<StringDetect attribute="Decimal" context="#stay" String="L" insensitive="true"/>
+				</Int>
+				<RegExpr attribute="Decimal" context="#stay" String="//\s*BEGIN.*$" beginRegion="Region1"/>
+				<RegExpr attribute="Decimal" context="#stay" String="//\s*END.*$" endRegion="Region1"/>
+				<DetectChar attribute="String" context="String" char="&quot;"/>
+				<Detect2Chars attribute="Comment" context="Commentar 1" char="/" char1="/"/>
+				<Detect2Chars attribute="Comment" context="Commentar 2" char="/" char1="*" beginRegion="Comment"/>
+				<DetectChar attribute="Symbol" context="#stay" char="{" beginRegion="Brace1"/>
+				<DetectChar attribute="Symbol" context="#stay" char="}" endRegion="Brace1"/>
+				<RegExpr attribute="Keyword" context="#stay" String="\.{3,3}\s+" />
+				<RegExpr attribute="Keyword" context="Imports" String="\bimport\b" />
+				<RegExpr attribute="Function" context="#stay" String="\b[_\w][_\w\d]*(?=[\s]*(/\*\s*\d+\s*\*/\s*)?[(])" />
+				<RegExpr attribute="Symbol" context="Member" String="[.]{1,1}" />
+				<DetectChar attribute="Symbol" context="InFunctionCall" char="("/>
+				<AnyChar attribute="Symbol" context="#stay" String=":!%&amp;+,-/.*&lt;=&gt;?[]|~^&#59;"/>
+			</context>
+			<context attribute="Normal Text" lineEndContext="#stay" name="InFunctionCall">
+				<IncludeRules context="Normal"/>
+				<DetectChar attribute="Symbol" context="#pop" char=")"/>
+			</context>
+			<context attribute="String" lineEndContext="#pop" name="String">
+				<LineContinue attribute="String" context="#stay"/>
+				<HlCStringChar attribute="String Char" context="#stay"/>
+				<RegExpr attribute="String Char" context="#stay" String="\\u[0-9a-fA-F]{4}"/>
+				<DetectChar attribute="String" context="#pop" char="&quot;"/>
+			</context>
+			<context attribute="Normal Text" lineEndContext="#stay" name="EnterPrintf" fallthrough="true" fallthroughContext="#pop">
+				<DetectChar attribute="Symbol" context="Printf" char="("/>
+				<DetectSpaces attribute="Normal Text" context="#stay"/>
+			</context>
+			<context attribute="Normal Text" lineEndContext="#pop" name="Member" fallthrough="true" fallthroughContext="#pop">
+				<RegExpr attribute="Function" context="#pop" String="\b[_a-zA-Z]\w*(?=[\s]*)" />
+			</context>
+			<context attribute="Normal Text" lineEndContext="#pop" name="StaticImports">
+				<RegExpr attribute="StaticImports" context="#pop" String="\s*.*;" />
+			</context>
+			<context attribute="Normal Text" lineEndContext="#pop" name="Imports">
+				<RegExpr attribute="Imports" context="#pop" String="\s*.*;" />
+			</context>
+			<context attribute="Comment" lineEndContext="#pop" name="Commentar 1"/>
+			<context attribute="Comment" lineEndContext="#stay" name="Commentar 2">
+				<Detect2Chars attribute="Comment" context="#pop" char="*" char1="/" endRegion="Comment"/>
+			</context>
+		</contexts>
+		<itemDatas>
+			<itemData name="Normal Text"  defStyleNum="dsNormal"/>
+			<itemData name="Keyword"      defStyleNum="dsKeyword"/>
+			<itemData name="Annotation"   defStyleNum="dsFunction"/>
+			<itemData name="Function"     defStyleNum="dsFunction"/>
+			<itemData name="Imports"      defStyleNum="dsKeyword" color="#808000" selColor="#FFFFFF" bold="0" italic="0"/>
+			<itemData name="Data Type"    defStyleNum="dsDataType"/>
+			<itemData name="Decimal"      defStyleNum="dsDecVal"/>
+			<itemData name="Float"        defStyleNum="dsFloat"/>
+			<itemData name="Char"         defStyleNum="dsChar"/>
+			<itemData name="String"       defStyleNum="dsString"/>
+			<itemData name="String Char"  defStyleNum="dsChar"/>
+			<itemData name="Comment"      defStyleNum="dsComment"/>
+			<itemData name="Symbol"       defStyleNum="dsNormal"/>
+		</itemDatas>
+	</highlighting>
+	<general>
+		<comments>
+			<comment name="singleLine" start="//"/>
+			<comment name="multiLine" start="/*" end="*/"/>
+		</comments>
+		<keywords casesensitive="1"/>
+	</general>
+</language>

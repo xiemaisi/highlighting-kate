@@ -92,6 +92,7 @@ Currently, the following languages/formats are supported:
 - Prolog
 - Pure
 - Python
+- QL
 - R
 - Relaxng
 - Relaxngcompact

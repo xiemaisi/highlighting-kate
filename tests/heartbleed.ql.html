@@ -1,0 +1,90 @@
+<head><title>tests/heartbleed.ql</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="generator" content="highlight-kate"><style type="text/css">div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style></head><body><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span class="co">// from https://semmle.com/custom-analysis-for-heartbleed/</span>
+
+<span class="kw">import</span> cpp
+
+<span class="co">/** Could e evaluate to a pointer into a buffer referenced by v? */</span>
+<span class="kw">predicate</span> <span class="fu">pointsInto</span>(Expr e, Variable v) {
+  e = v.<span class="fu">getAnAccess</span>() <span class="kw">or</span>
+  <span class="kw">exists</span> (ArrayExpr ae | ae = ((AddressOfExpr)e).<span class="fu">getOperand</span>() | ae.<span class="fu">getArrayBase</span>() = v.<span class="fu">getAnAccess</span>()) <span class="kw">or</span>
+  <span class="fu">pointsInto</span>(((VariableAccess)e).<span class="fu">getTarget</span>().<span class="fu">getAnAssignedValue</span>(), v)
+}
+
+<span class="co">/** Is v ever (implicitly or explicitly) compared to w?*/</span>
+<span class="kw">predicate</span> <span class="fu">comparedTo</span>(Variable v, Variable w) {
+  v.<span class="fu">getAnAssignedValue</span>() = w.<span class="fu">getAnAccess</span>() <span class="kw">or</span>
+  <span class="kw">exists</span> (ComparisonOperation comp |
+    comp = v.<span class="fu">getAnAccess</span>().<span class="fu">getParent</span>+() <span class="kw">and</span>
+    comp = w.<span class="fu">getAnAccess</span>().<span class="fu">getParent</span>+()
+  )
+}
+
+<span class="co">/** Is &#39;memcpy&#39; a memcpy operation reading from f? */</span>
+<span class="kw">predicate</span> <span class="fu">memcpy</span>(FunctionCall memcpy, Field f) {
+  memcpy.<span class="fu">getTarget</span>().<span class="fu">getName</span>().<span class="fu">matches</span>(<span class="st">&quot;%memcpy%&quot;</span>) <span class="kw">and</span>
+  <span class="fu">pointsInto</span>(memcpy.<span class="fu">getArgument</span>(<span class="dv">1</span>), f)
+}
+ 
+<span class="co">/** Is &#39;memcpy&#39; a memcpy operation reading from f with a bounds check against g? */</span>
+<span class="kw">predicate</span> <span class="fu">guarded_memcpy</span>(FunctionCall memcpy, Field f, Field g) {
+  <span class="fu">memcpy</span>(memcpy, f) <span class="kw">and</span>
+  <span class="fu">comparedTo</span>(((VariableAccess)memcpy.<span class="fu">getArgument</span>(<span class="dv">2</span>)).<span class="fu">getTarget</span>(), g)
+}
+
+<span class="co">/** Are memcpy operations reading from f usually (i.e., in more than 50% of cases)</span>
+<span class="co"> * guarded by bounds checks against g? If so, bind &#39;p&#39; to the percentage of checked</span>
+<span class="co"> * memcpy operations. */</span>
+<span class="kw">predicate</span> <span class="fu">memcpy_usually_guarded</span>(Field f, Field g, float p) {
+  <span class="kw">exists</span> (int total, int guarded |
+      total = <span class="kw">count</span>(FunctionCall fc | <span class="fu">memcpy</span>(fc, f)) <span class="kw">and</span>
+      guarded = <span class="kw">count</span>(FunctionCall fc | <span class="fu">guarded_memcpy</span>(fc, f, g)) <span class="kw">and</span>
+      p = ((float)guarded*<span class="dv">100</span>)/total <span class="kw">and</span>
+      p &gt; <span class="dv">50</span>
+  )
+}
+
+<span class="co">// find memcpy operations reading from a field f that are not bounds-checked against field g,</span>
+<span class="co">// where more than 50% of all memcpy reads from f do have such a check</span>
+<span class="kw">from</span> FunctionCall memcpy, Struct s, Field f, Field g, float perc
+<span class="kw">where</span> f = s.<span class="fu">getAField</span>() <span class="kw">and</span> g = s.<span class="fu">getAField</span>() <span class="kw">and</span>
+      <span class="fu">memcpy</span>(memcpy, f) <span class="kw">and</span>
+      <span class="fu">memcpy_usually_guarded</span>(f, g, perc) <span class="kw">and</span>
+      <span class="kw">not</span> <span class="fu">guarded_memcpy</span>(memcpy, f, g) <span class="kw">and</span>
+      <span class="kw">forall</span> (Field gg, float pperc | <span class="fu">memcpy_usually_guarded</span>(f, gg, pperc) | pperc &lt;= perc)
+<span class="kw">select</span> memcpy, <span class="st">&quot;memcpy from &quot;</span> + s.<span class="fu">toString</span>() + <span class="st">&quot;::&quot;</span> + f +
+               <span class="st">&quot; is guarded by comparison against &quot;</span> + s.<span class="fu">toString</span>() + <span class="st">&quot;::&quot;</span> + g +
+               <span class="st">&quot; in &quot;</span> + perc + <span class="st">&quot;% of all cases, but not here.&quot;</span></code></pre></div></body>
